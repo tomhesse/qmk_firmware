@@ -21,6 +21,10 @@ enum layers {
     _FUNC
 };
 
+enum custom_keycodes {
+    M_JIGL = SAFE_RANGE // Used for mouse jiggler macro
+};
+
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 /* Keymap (Base Layer) Default Layer
    * ,----------------------------------------------------------------.
@@ -52,7 +56,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
    * |----------------------------------------------------------------|
    * |        |   |   |   |   |   |   |   |   |   |   |      |Stp|VlDn|
    * |----------------------------------------------------------------|
-   * |    |    |    |                      |    |   |    |Prv|Ply|Nxt |
+   * |    |    |    |     Mouse Jiggler    |    |   |    |Prv|Ply|Nxt |
    * `----------------------------------------------------------------'
    */
 
@@ -61,7 +65,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_MUTE,
   KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,          KC_TRNS, KC_VOLU,
   KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,          KC_TRNS, KC_MSTP, KC_VOLD,
-  KC_TRNS, KC_TRNS, KC_TRNS,                   KC_TRNS,                            KC_TRNS, KC_TRNS, KC_TRNS, KC_MPRV, KC_MPLY, KC_MNXT),
+  KC_TRNS, KC_TRNS, KC_TRNS,                   M_JIGL,                             KC_TRNS, KC_TRNS, KC_TRNS, KC_MPRV, KC_MPLY, KC_MNXT),
 
 };
 
@@ -73,3 +77,44 @@ const key_override_t **key_overrides = (const key_override_t *[]){
     &delete_key_override,
     NULL // Null terminate the array of overrides!
 };
+
+// Variables used by mouse jiggler macro
+bool mouse_jiggle_active = false;
+bool mouse_jiggle_direction = false; // Used to alternate direction
+uint16_t mouse_jiggle_frequency = 15000; // How often to move the mouse (15 seconds)
+uint16_t mouse_jiggle_timer = 0;
+
+// Process user input
+bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+    switch (keycode) {
+        case M_JIGL:
+            if (record->event.pressed) {
+                mouse_jiggle_active = !mouse_jiggle_active;
+                rgblight_toggle_noeeprom();
+            }
+            break;
+        default:
+            if (record->event.pressed) {
+                if (mouse_jiggle_active) {
+                    mouse_jiggle_active = !mouse_jiggle_active;
+                    rgblight_toggle_noeeprom();
+                }
+            }
+    }
+    return true;
+}
+
+// Execute code when matric is scanned
+void matrix_scan_user(void) {
+    if (mouse_jiggle_active) {
+        if (timer_elapsed(mouse_jiggle_timer) > mouse_jiggle_frequency) {
+            mouse_jiggle_timer = timer_read();
+            if (mouse_jiggle_direction) {
+                tap_code(KC_MS_LEFT);
+            } else {
+                tap_code(KC_MS_RIGHT);
+            }
+            mouse_jiggle_direction = !mouse_jiggle_direction;
+        }
+    }
+}
